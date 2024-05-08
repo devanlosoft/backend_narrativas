@@ -4,9 +4,6 @@ https://docs.nestjs.com/controllers#controllers
 
 import {
   Body,
-  FileTypeValidator,
-  MaxFileSizeValidator,
-  ParseFilePipe,
   Post,
   UploadedFile,
   UseInterceptors,
@@ -16,20 +13,20 @@ import {
   Param,
   Res,
   Delete,
+  BadRequestException,
 } from '@nestjs/common';
 import { NarrativasService } from './narrativas.service';
 import { CreateCategoryDTO } from './dto/categories.dto';
 import { CreateContentDTO } from './dto/contenidos.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
-import { ObjectId } from 'mongoose';
 
 @Controller('narrativas')
 export class NarrativasController {
   constructor(
     private narrativasService: NarrativasService,
     private readonly cloudinaryService: CloudinaryService,
-  ) { }
+  ) {}
 
   //CATEGORIAS
 
@@ -57,31 +54,6 @@ export class NarrativasController {
 
   //CONTENDIDOS
 
-  @Post('createcontent/:categoryId')
-  @UseInterceptors(FileInterceptor('imagen'))
-  async createContent(
-    @UploadedFile() file: Express.Multer.File,
-    @Body() createContentDTO: CreateContentDTO,
-    @Param('categoryId') categoryId,
-  ) {
-    const cloudinaryResponse = await this.cloudinaryService.uploadFile(
-      file,
-      'narrativas/imagenes',
-    );
-
-    const contentCreated = await this.narrativasService.createContent(
-      createContentDTO,
-      categoryId,
-      'imagenurl',
-      //cloudinaryResponse.secure_url,
-    );
-
-    return {
-      contentCreated,
-      cloudinaryResponse,
-    };
-  }
-
   @Get('contents')
   async getContents(@Res() res) {
     const contents = await this.narrativasService.getContents();
@@ -92,21 +64,30 @@ export class NarrativasController {
 
   //MAS PRUEBAS PARA RECIBIR DATOS
   // En el controlador NarrativasController
-  @Post('formulario/:categoryId')
-  @UseInterceptors(FileInterceptor('imagen'))
+  @Post('formulario')
+  @UseInterceptors(FileInterceptor('file'))
   async handleFormulario(
+    @Res() res,
     @UploadedFile() file: Express.Multer.File,
     @Body('data') data: string, // Cambia 'createContent' a 'data' para reflejar que es una cadena JSON
-    @Param('categoryId') categoryId: ObjectId,
   ) {
     try {
       //subir la imagen para obtener la URL
+      if (!file) {
+        throw new BadRequestException('No se ha subido ninguna imagen');
+      }
+      if (!data) {
+        throw new BadRequestException('No se ha enviado ningún dato');
+      }
+
       const cloudinaryResponse = await this.cloudinaryService.uploadFile(
         file,
         'narrativas/imagenes',
       );
 
-      console.log(cloudinaryResponse.secure_url);
+      // Obtener el ID de la categoría del cuerpo de la solicitud
+      const categoryId = JSON.parse(data).categoria;
+
       // Convierte la cadena JSON a un objeto JavaScript
       const createContent: CreateContentDTO = JSON.parse(data);
       const contentCreated = await this.narrativasService.createContent(
@@ -115,40 +96,13 @@ export class NarrativasController {
         cloudinaryResponse.secure_url,
       );
 
-      return { contentCreated };
+      return res.status(HttpStatus.OK).json({
+        contentCreated,
+      });
     } catch (error) {
       console.error('Error al crear el contenido:', error);
-      // Manejar el error de acuerdo a tus necesidades
+      return { message: 'Error al crear el contenido', error };
     }
-  }
-
-  //CLOUDINARY PARA MANEJO DE SUBIDA DE ARCHIVOS A LA CLOUD
-  @Post('uploadImage')
-  @UseInterceptors(FileInterceptor('imagen'))
-  async uploadImage(
-    @UploadedFile(
-      new ParseFilePipe({
-        validators: [
-          new MaxFileSizeValidator({ maxSize: 1024 * 1024 }),
-          new FileTypeValidator({ fileType: '.(png|jpeg|jpg)' }),
-        ],
-      }),
-    )
-    file: Express.Multer.File,
-    @Body() datosForm: { title: string; description: string; state: boolean },
-  ) {
-    const cloudinaryResponse = await this.cloudinaryService.uploadFile(
-      file,
-      'narrativas/imagenes',
-    );
-
-    // Aqui puedes usar los datos del formulario
-    console.log(datosForm.title);
-    console.log(datosForm.description);
-    console.log(datosForm.state);
-    console.log(cloudinaryResponse);
-
-    return cloudinaryResponse;
   }
 
   // borrar archivos por su id publico
@@ -158,6 +112,7 @@ export class NarrativasController {
       await this.cloudinaryService.deleteFile(publicId);
       return { message: 'Archivo eliminado exitosamente' };
     } catch (error) {
+      console.error(error);
       throw error;
     }
   }
