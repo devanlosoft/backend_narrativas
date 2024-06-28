@@ -21,7 +21,7 @@ export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer
       .apply((req, res, next) => {
-        res.header('Access-Control-Allow-Origin', 'http://localhost:3000'); // Reemplaza esto con el origen de tu aplicación React
+        res.header('Access-Control-Allow-Origin', '*'); // Reemplaza esto con el origen de tu aplicación React
         res.setHeader(
           'Access-Control-Allow-Methods',
           'GET, POST, PUT, DELETE, OPTIONS',

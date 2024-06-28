@@ -14,12 +14,15 @@ import {
   Res,
   Delete,
   BadRequestException,
+  Query,
+  Patch,
 } from '@nestjs/common';
 import { NarrativasService } from './narrativas.service';
 import { CreateCategoryDTO } from './dto/categories.dto';
 import { CreateContentDTO } from './dto/contenidos.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import { ObjectId } from 'mongoose';
 
 @Controller('narrativas')
 export class NarrativasController {
@@ -53,12 +56,34 @@ export class NarrativasController {
   }
 
   //CONTENDIDOS
-
   @Get('contents')
-  async getContents(@Res() res) {
-    const contents = await this.narrativasService.getContents();
+  async getContents(
+    @Res() res,
+    @Query('page') page: number,
+    @Query('limit') limit: number,
+  ) {
+    const contents = await this.narrativasService.getContentsWithPagination(
+      page,
+      limit,
+    );
     return res.status(HttpStatus.OK).json({
       contents,
+    });
+  }
+
+  @Patch('contents/:id')
+  async updateContent(
+    @Res() res,
+    @Body() createContentDTO: CreateContentDTO,
+    @Param('id') id: ObjectId,
+  ) {
+    const contentUpdated = await this.narrativasService.updateContent(
+      createContentDTO, // Pass the createContentDTO instance instead of a string
+      id, // Swap the order of the arguments
+    );
+    return res.status(HttpStatus.OK).json({
+      message: 'Contenido actualizado satisfactoriamente',
+      contentUpdated,
     });
   }
 
@@ -117,46 +142,3 @@ export class NarrativasController {
     }
   }
 }
-
-/* @UseInterceptors(FileInterceptor('imagen'))
-  @Post('createcontent/:categoryId')
-  async createContent(
-    @Res() res,
-    @Body() createContentDTO: CreateContentDTO,
-    @Param('categoryId') categoryId,
-    @UploadedFile(
-      new ParseFilePipe({
-        validators: [
-          new MaxFileSizeValidator({ maxSize: 1024 * 1024 }),
-          new FileTypeValidator({ fileType: '.(png|jpeg|jpg)' }),
-        ],
-      }),
-    )
-    @UploadedFile()
-    file: Express.Multer.File, // Obtiene el archivo de imagen subido
-  ) {
-    //verificar que la categoria exista
-    const category = await this.narrativasService.getCategory(categoryId);
-    if (!category) {
-      return res.status(HttpStatus.NOT_FOUND).json({
-        message: 'La categoría especificada no existe',
-      });
-    }
-
-    // si la categoria existe carga la imagen al cloudinary
-    const cloudinaryResponse = await this.cloudinaryService.uploadFile(
-      file,
-      'narrativas/imagenes',
-    );
-
-    // si la categoria existe y se guardo la imagen creo la imagen crea el contenido
-    const contentCreated = await this.narrativasService.createContent(
-      createContentDTO,
-      categoryId,
-      cloudinaryResponse.secure_url,
-    );
-    return res.status(HttpStatus.OK).json({
-      contentCreated,
-      cloudinaryResponse,
-    });
-  } */

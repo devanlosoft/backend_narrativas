@@ -42,6 +42,19 @@ export class NarrativasService {
     return deleteCategory;
   }
 
+  // const contents = await this.narrativasService.getContentsWithPagination(page, limit);
+  //debo hacer la implemetacion de la paginacion en el servicio
+  async getContentsWithPagination(
+    page: number,
+    limit: number,
+  ): Promise<Content[]> {
+    const contents = await this.contentModel
+      .find()
+      .skip((page - 1) * limit)
+      .limit(limit);
+    return contents;
+  }
+
   async updateCategory(
     categoryId: number,
     createCategoryDTO: CreateCategoryDTO,
@@ -65,6 +78,15 @@ export class NarrativasService {
     createContentDTO.imagen = imagePublicId;
     const content = new this.contentModel(createContentDTO);
     return await content.save();
+  }
+
+  async updateContent(CreateContentDTO: CreateContentDTO, contentId: ObjectId) {
+    const updateContent = await this.contentModel.findByIdAndUpdate(
+      contentId,
+      CreateContentDTO,
+      { new: true },
+    );
+    return updateContent;
   }
 
   async getContents(): Promise<Content[]> {
