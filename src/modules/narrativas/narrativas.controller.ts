@@ -1,7 +1,3 @@
-/*
-https://docs.nestjs.com/controllers#controllers
-*/
-
 import {
   Body,
   Post,
@@ -88,49 +84,64 @@ export class NarrativasController {
   }
 
   //MAS PRUEBAS PARA RECIBIR DATOS
-  // En el controlador NarrativasController
   @Post('formulario')
   @UseInterceptors(FileInterceptor('file'))
   async handleFormulario(
     @Res() res,
     @UploadedFile() file: Express.Multer.File,
-    @Body('data') data: string, // Cambia 'createContent' a 'data' para reflejar que es una cadena JSON
+    @Body('data') data: string,
+    @UploadedFile() video: Express.Multer.File,
   ) {
     try {
-      //subir la imagen para obtener la URL
+      console.log('File:', file);
+      console.log('Data:', data);
+      console.log('Video:', video);
+
       if (!file) {
         throw new BadRequestException('No se ha subido ninguna imagen');
       }
       if (!data) {
         throw new BadRequestException('No se ha enviado ningún dato');
       }
+      if (!video) {
+        throw new BadRequestException('No se ha subido ningún video');
+      }
 
-      const cloudinaryResponse = await this.cloudinaryService.uploadFile(
+      const cloudinaryImageResponse = await this.cloudinaryService.uploadFile(
         file,
         'narrativas/imagenes',
       );
+      console.log('Cloudinary Image Response:', cloudinaryImageResponse);
 
-      // Obtener el ID de la categoría del cuerpo de la solicitud
+      const cloudinaryVideoResponse = await this.cloudinaryService.uploadFile(
+        video,
+        'narrativas/videos',
+      );
+      console.log('Cloudinary Video Response:', cloudinaryVideoResponse);
+
       const categoryId = JSON.parse(data).categoria;
-
-      // Convierte la cadena JSON a un objeto JavaScript
       const createContent: CreateContentDTO = JSON.parse(data);
+
       const contentCreated = await this.narrativasService.createContent(
         createContent,
         categoryId,
-        cloudinaryResponse.secure_url,
+        cloudinaryImageResponse.secure_url,
+        cloudinaryVideoResponse.secure_url,
       );
+      console.log('Content Created:', contentCreated);
 
       return res.status(HttpStatus.OK).json({
         contentCreated,
       });
     } catch (error) {
       console.error('Error al crear el contenido:', error);
-      return { message: 'Error al crear el contenido', error };
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        message: 'Error al crear el contenido',
+        error,
+      });
     }
   }
 
-  // borrar archivos por su id publico
   @Delete('delete/:publicId')
   async deleteImage(@Param('publicId') publicId: string) {
     try {

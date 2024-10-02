@@ -73,9 +73,11 @@ export class NarrativasService {
     createContentDTO: CreateContentDTO,
     categoryId: ObjectId,
     imagePublicId: string,
+    videoPublicId: string,
   ): Promise<Content> {
     createContentDTO.category = categoryId;
     createContentDTO.imagen = imagePublicId;
+    createContentDTO.content_url = videoPublicId;
     const content = new this.contentModel(createContentDTO);
     return await content.save();
   }
